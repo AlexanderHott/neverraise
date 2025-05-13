@@ -36,12 +36,11 @@ def get_todos() -> ResultAsync[list[Todo], HTTPError | JsonParseError | DecodeEr
 
 
 async def main():
-    todos: list[Todo]
     match await get_todos():
-        case Ok(t):
-            todos = t
+        case Ok(todos):
+            ...
         case Err(HTTPError() as e):
-            print(f"Error fetching todos: {e}, will retry...")
+            print(f"Error fetching todos: {e}, will retry... (todo)")
             return
         case Err() as e:
             print(f"Error {e!r}")
