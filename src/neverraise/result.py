@@ -10,12 +10,16 @@ from typing import (
     Awaitable,
 )
 
+# main result generics bounnd to classes
 T = TypeVar("T", covariant=True)
-U = TypeVar("U", covariant=True)
-
 E = TypeVar("E", covariant=True, bound=BaseException)
+
+
+# free result generics used in methods
+U = TypeVar("U", covariant=True)
 F = TypeVar("F", covariant=True, bound=BaseException)
 
+# non-result generics used in methods
 A = TypeVar(
     "A",
 )
@@ -24,7 +28,7 @@ R = TypeVar(
 )
 
 
-class Ok(Generic[T]):
+class Ok(Generic[T, E]):
     """Ok variant of Result."""
 
     __slots__ = ("_value",)
@@ -41,16 +45,16 @@ class Ok(Generic[T]):
     def is_err(self) -> bool:
         return False
 
-    def map(self, func: Callable[[T], U]) -> Result[U, E]:
+    def map(self, func: Callable[[T], U]) -> Ok[U, E]:
         return Ok(func(self._value))
 
-    def map_err(self, func: Callable[[E], F]) -> Ok[T]:
+    def map_err(self, func: Callable[[E], F]) -> Ok[T, F]:
         return Ok(self._value)
 
     def and_then(self, func: Callable[[T], Result[U, F]]) -> Result[U, F]:
         return func(self._value)
 
-    def and_tee(self, func: Callable[[T], Any]) -> Ok[T]:
+    def and_tee(self, func: Callable[[T], Any]) -> Ok[T, E]:
         try:
             func(self._value)
         except Exception:
@@ -92,11 +96,11 @@ class Ok(Generic[T]):
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, Ok):
             return False
-        other_ok = cast(Ok[Any], other)
+        other_ok = cast(Ok[Any, Any], other)
         return self._value == other_ok._value
 
 
-class Err(Generic[E]):
+class Err(Generic[T, E]):
     """Err variant of Result."""
 
     __slots__ = ("_error",)
@@ -113,10 +117,10 @@ class Err(Generic[E]):
     def is_err(self) -> bool:
         return True
 
-    def map(self, func: Callable[[T], U]) -> Err[E]:
+    def map(self, func: Callable[[T], U]) -> Err[U, E]:
         return Err(self._error)
 
-    def map_err(self, func: Callable[[E], F]) -> Err[F]:
+    def map_err(self, func: Callable[[E], F]) -> Err[T, F]:
         return Err(func(self._error))
 
     def and_then(self, func: Callable[[T], Result[U, F]]) -> Result[U, E | F]:
@@ -128,7 +132,7 @@ class Err(Generic[E]):
     def and_through(
         self, func: Callable[[Any], U], error_handler: Callable[[Exception], F]
     ) -> Result[U, E | F]:
-        return self
+        return cast(Result[U, E | F], self)
 
     def or_tee(self, func: Callable[[E], Any]) -> Result[T, E]:
         try:
@@ -161,11 +165,11 @@ class Err(Generic[E]):
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, Err):
             return False
-        other_err = cast(Err[Any], other)
+        other_err = cast(Err[Any, Any], other)
         return self._error == other_err._error
 
 
-Result: TypeAlias = Ok[T] | Err[E]
+Result: TypeAlias = Ok[T, E] | Err[T, E]
 
 
 def try_catch(func: Callable[[], T]) -> Result[T, BaseException]:
@@ -187,7 +191,7 @@ class ResultAsync(Generic[T, E]):
     def from_coro(
         coro: Awaitable[U], error_handler: Callable[[BaseException], F]
     ) -> ResultAsync[U, F]:
-        async def wrapper():
+        async def wrapper() -> Result[U, F]:
             try:
                 return Ok(await coro)
             except Exception as e:
@@ -195,23 +199,8 @@ class ResultAsync(Generic[T, E]):
 
         return ResultAsync(wrapper())
 
-    # @classmethod
-    # def from_coro(
-    #     cls: type[ResultAsync[T, E]],
-    #     coro: Awaitable[T],
-    #     error_handler: Callable[[Exception], E],
-    # ) -> ResultAsync[T, E]:
-    #     async def wrapper():
-    #         try:
-    #             value = await coro
-    #             return Ok(value)
-    #         except Exception as e:
-    #             return Err(error_handler(e))
-
-    #     return cls(wrapper())
-
     def map(self, func: Callable[[T], U]) -> ResultAsync[U, E]:
-        async def wraper():
+        async def wraper() -> Result[U, E]:
             result = await self.coro
             match result:
                 case Ok(value):
@@ -222,7 +211,7 @@ class ResultAsync(Generic[T, E]):
         return ResultAsync(wraper())
 
     def map_async(self, func: Callable[[T], Awaitable[U]]) -> ResultAsync[U, E]:
-        async def wraper():
+        async def wraper() -> Result[U, E]:
             match await self.coro:
                 case Ok(value):
                     return Ok(await func(value))
@@ -234,13 +223,13 @@ class ResultAsync(Generic[T, E]):
     def and_through(
         self, func: Callable[[T], U], error_handler: Callable[[Exception], F]
     ) -> ResultAsync[U, E | F]:
-        async def wraper():
+        async def wraper() -> Result[U, E | F]:
             result = await self.coro
             match result:
                 case Ok(value):
                     ...
                 case Err() as err:
-                    return err
+                    return cast(Result[U, E | F], err)
             try:
                 return Ok(func(value))
             except Exception as e:
@@ -267,7 +256,7 @@ class ResultFactory:
         coro: Awaitable[T],
         error_handler: Callable[[Exception], E],
     ) -> ResultAsync[T, E]:
-        async def wrapper():
+        async def wrapper() -> Result[T, E]:
             try:
                 value = await coro
                 return Ok(value)
