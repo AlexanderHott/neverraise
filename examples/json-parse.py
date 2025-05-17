@@ -1,7 +1,9 @@
-from neverraise import ResultAsync, Ok, Err
-import httpx
 import asyncio
+
+import httpx
 import msgspec
+
+from neverraise import Err, Ok, ResultAsync
 
 
 class Todo(msgspec.Struct, rename="camel"):
@@ -27,8 +29,8 @@ def get_todos() -> ResultAsync[list[Todo], HTTPError | JsonParseError | DecodeEr
             client.get("https://jsonplaceholder.typicode.com/todos/"),
             lambda e: HTTPError(e),
         )
-        .and_through(lambda response: response.json(), lambda e: JsonParseError(e))
-        .and_through(
+        .try_catch(lambda response: response.json(), lambda e: JsonParseError(e))
+        .try_catch(
             lambda json: msgspec.convert(json, type=list[Todo]),
             lambda e: DecodeError(e),
         )
