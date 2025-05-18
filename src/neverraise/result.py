@@ -1053,6 +1053,20 @@ class ResultAsync(Generic[T, E]):
         return self._coro.__await__()
 
 
+def ErrAsync(error: E) -> ResultAsync[T, E]:  # type: ignore
+    async def wrapper() -> Result[T, E]:
+        return Err(error)
+
+    return ResultAsync(wrapper())
+
+
+def OkAsync(value: T) -> ResultAsync[T, E]:  # type: ignore
+    async def wrapper() -> Result[T, E]:
+        return Ok(value)
+
+    return ResultAsync(wrapper())
+
+
 def try_except(
     func: Callable[[], T],
     error_handler: Callable[[Exception], E] = lambda e: e,
