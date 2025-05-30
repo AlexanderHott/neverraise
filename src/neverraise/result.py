@@ -1080,6 +1080,36 @@ class ResultAsync(Generic[T, E]):
 
         return ResultAsync(wrapper())
 
+    def map_err(self, func: Callable[[E], F]) -> ResultAsync[T, F]:
+        async def wrapper() -> Result[T, F]:
+            match await self._coro:
+                case Ok(value):
+                    return Ok(value)
+                case Err(error):
+                    return Err(func(error))
+
+        return ResultAsync(wrapper())
+
+    def map_err_async(self, func: Callable[[E], Awaitable[F]]) -> ResultAsync[T, F]:
+        async def wrapper() -> Result[T, F]:
+            match await self._coro:
+                case Ok(value):
+                    return Ok(value)
+                case Err(error):
+                    return Err(await func(error))
+
+        return ResultAsync(wrapper())
+
+    def and_then(self, func: Callable[[T], ResultAsync[U, F]]) -> ResultAsync[U, E | F]:
+        async def wrapper() -> Result[U, E | F]:
+            match await self._coro:
+                case Ok(value):
+                    return await func(value)
+                case Err(error):
+                    return Err(error)
+
+        return ResultAsync(wrapper())
+
 
 def ErrAsync(error: E) -> ResultAsync[T, E]:  # type: ignore
     async def wrapper() -> Result[T, E]:
