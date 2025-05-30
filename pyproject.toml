@@ -1,17 +1,17 @@
 [project]
 name = "neverraise"
-version = "0.1.1"
+version = "0.1.2"
 description = "Result types for python"
 readme = "README.md"
 authors = [
-    { name = "Alexander Ott", email = "66271487+AlexanderHott@users.noreply.github.com" },
+  { name = "Alexander Ott", email = "66271487+AlexanderHott@users.noreply.github.com" },
 ]
 requires-python = ">=3.13"
 dependencies = []
 classifiers = [
-    "Programming Language :: Python :: 3.13",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3.13",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
 ]
 license = { file = "LICENSE" }
 
