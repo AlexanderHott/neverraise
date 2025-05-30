@@ -12,8 +12,8 @@ def divide(a: int, b: int) -> Result[float, ZeroDivisionError]:
     return Ok(a / b)
 
 match divide(1, 0):
-    Ok(res): print(f"Got {res}")
-    Err(): print("Couldn't divide")
+    case Ok(res): print(f"Got {res}")
+    case Err(): print("Couldn't divide")
 ```
 
 ```python

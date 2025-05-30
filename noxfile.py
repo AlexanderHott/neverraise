@@ -46,3 +46,15 @@ def typecheck(session: nox.Session) -> None:
         env={"UV_PROJECT_ENVIRONMENT": session.virtualenv.location},
     )
     _ = session.run("python", "-m", "pyright", "src")
+
+
+@nox_session()
+def format(session: nox.Session) -> None:
+    _ = session.run_install(
+        "uv",
+        "sync",
+        "--group=format",
+        env={"UV_PROJECT_ENVIRONMENT": session.virtualenv.location},
+    )
+    _ = session.run("python", "-m", "ruff", "check", "--select", "I", "--fix", "src", "tests")
+    _ = session.run("python", "-m", "ruff", "format", "src", "tests")

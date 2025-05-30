@@ -149,8 +149,8 @@ from typing import (
 )
 
 # main result generics bounnd to classes
-T = TypeVar("T")
-E = TypeVar("E")
+T = TypeVar("T", covariant=True)
+E = TypeVar("E", covariant=True)
 
 
 # free result generics used in methods
@@ -781,7 +781,7 @@ class Ok(Generic[T, E]):
         """
         return self._value
 
-    def try_catch(
+    def try_except(
         self,
         func: Callable[[T], U],
         error_handler: Callable[[Exception], F] = lambda e: e,
@@ -791,7 +791,7 @@ class Ok(Generic[T, E]):
         except Exception as e:
             return Err(error_handler(e))
 
-    def try_catch_async(
+    def try_except_async(
         self,
         func: Callable[[T], Awaitable[U]],
         error_handler: Callable[[Exception], F],
@@ -920,14 +920,14 @@ class Err(Generic[T, E]):
     def unwrap_or_else(self, func: Callable[[E], T]) -> T:
         return func(self._error)
 
-    def try_catch(
+    def try_except(
         self,
         func: Callable[[T], U],
         error_handler: Callable[[Exception], F] = lambda e: e,
     ) -> Result[U, E | F]:
         return cast(Result[U, E | F], self)
 
-    def try_catch_async(
+    def try_except_async(
         self,
         func: Callable[[T], Awaitable[U]],
         error_handler: Callable[[Exception], F],
@@ -961,13 +961,6 @@ class Err(Generic[T, E]):
 
 
 Result: TypeAlias = Ok[T, E] | Err[T, E]
-
-
-def try_catch(func: Callable[[], T]) -> Result[T, Exception]:
-    try:
-        return Ok(func())
-    except Exception as e:
-        return Err(e)
 
 
 class ResultAsync(Generic[T, E]):
@@ -1051,6 +1044,41 @@ class ResultAsync(Generic[T, E]):
 
     def __await__(self):
         return self._coro.__await__()
+
+    def inspect(self, func: Callable[[Result[T, E]], Any]) -> ResultAsync[T, E]:
+        async def wrapper():
+            res = await self._coro
+            with contextlib.suppress(Exception):
+                func(res)
+            return res
+
+        return ResultAsync(wrapper())
+
+    def inspect_ok(self, func: Callable[[T], Any]) -> ResultAsync[T, E]:
+        async def wrapper():
+            res = await self._coro
+            with contextlib.suppress(Exception):
+                match res:
+                    case Ok(val):
+                        func(val)
+                    case _:
+                        ...
+            return res
+
+        return ResultAsync(wrapper())
+
+    def inspect_err(self, func: Callable[[E], Any]) -> ResultAsync[T, E]:
+        async def wrapper():
+            res = await self._coro
+            with contextlib.suppress(Exception):
+                match res:
+                    case Err(err):
+                        func(err)
+                    case _:
+                        ...
+            return res
+
+        return ResultAsync(wrapper())
 
 
 def ErrAsync(error: E) -> ResultAsync[T, E]:  # type: ignore
